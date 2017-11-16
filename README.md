@@ -1,0 +1,2 @@
+# GetMediaStatistic
+Receive Statistic data
