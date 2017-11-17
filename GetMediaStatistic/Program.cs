@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Data.SQLite;
 using System.Text.RegularExpressions;
-//using System.Net.WebClient;
+using MSUtil;
 
 
 namespace GetMediaStatistic
@@ -30,6 +30,11 @@ namespace GetMediaStatistic
             }
         } // stop Class Declaring
 
+        private class Synrob
+        {
+
+        }
+
         static void Main(string[] args)
         {
             Log("Start Program");
@@ -37,27 +42,6 @@ namespace GetMediaStatistic
 
             Log("Select from BranchDB");
             // accounts = GetAccountsInBranch();
-
-            string web_activeMobileLogings;
-            String[] activeMobileLogings;
-
-            using (var client = new System.Net.WebClient())
-            {
-                //client.Credentials = new NetworkCredential("user", "password");
-                web_activeMobileLogings = client.DownloadString("http://dior.corbina.net/active_mobile_logins.txt");
-                //Console.WriteLine(activeMobileLogings);
-
-                web_activeMobileLogings = Regex.Replace(web_activeMobileLogings, @"\s9", @"79").TrimEnd();
-                String pattern = @"\n";
-                
-                activeMobileLogings = Regex.Split(web_activeMobileLogings, pattern);
-
-                foreach (var activeMobileLogin in activeMobileLogings)
-                {
-                   
-                    Console.WriteLine(activeMobileLogin);
-                }
-            }
 
             /*
             Log(String.Format("OTT :{0}, STB :{1}, CTI :{2}, b2b :{3}, others :{4}, ALL :{5}",
@@ -69,6 +53,8 @@ namespace GetMediaStatistic
                     accounts.OTT, accounts.STB, accounts.CTI, accounts.b2b, accounts.others,
                     accounts.All());
             */
+
+
 
             /* stop for a monent 
             
@@ -100,11 +86,51 @@ namespace GetMediaStatistic
            
             */
 
+            GetSynchrobeStat();
+
             Console.ReadLine();
             Log("Stop Program");
 
         }// main
 
+
+        static void GetSynchrobeStat()
+        {
+            string[] servernames = { "MSKRUSSTBSYN001", "MSKRUSSTBSYN002" };
+
+            string LogPath = @"\c$\inetpub\logs\LogFiles\W3SVC3";            
+            string FileName = "u_ex" + DateTime.Now.ToString("yyMMdd") + "*.log";
+
+            LogQueryClass LogParser = null;
+            COMIISW3CInputContextClass IISLog = null;            
+
+            LogParser = new LogQueryClass();
+            IISLog = new COMIISW3CInputContextClass();
+
+            string strSQL = null;
+
+            try
+            {
+                foreach (string server in servernames)
+                    { 
+
+                    strSQL =  " SELECT MAX(time-taken) as MAX_tt, MIN(time-taken) as MIN_tt, AVG(time-taken) as AVG_tt " +
+                          " FROM \\\\" + server + "\\" + LogPath + "\\" + FileName +
+                          " WHERE time > SUB( SYSTEM_TIME(), TO_TIMESTAMP('00:15:00','HH:mm:ss') )  ";
+                    // Console.WriteLine(strSQL);
+                    // run query
+                    ILogRecordset rsLP = LogParser.Execute(strSQL, IISLog);
+                    Console.WriteLine(rsLP.getRecord().getValue("MAX_tt"));
+                }// foreach                              
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Query string: {0}", strSQL);
+                Console.WriteLine("Something wrong: {0}", ex.Message);
+               // SendFlag = 0;
+
+            }            
+        }// End of GetSynchrobeStat
 
         static void UpdateSQLiteDB(Accounts accounts, string sqlfile)
         {
