@@ -37,16 +37,14 @@ namespace GetMediaStatistic
             public string Value;
         }
 
-        /*
-        private class Synrob
+        
+        private class Http_codes
         {
-            public int MAX_tt;
-            public int MIN_tt;
-            public int AVG_tt;
-
-            public string description;
+            public int code_2xx;
+            public int code_5xx;
+            public int code_others;
         }
-        */
+        
 
         static void Main(string[] args)
         {
@@ -106,6 +104,8 @@ namespace GetMediaStatistic
 
         static List<MR_statistic> GetSynchrobeStat()
         {
+            Http_codes Http_codes = new Http_codes();
+
             //string[] servernames = { "MSKRUSSTBSYN001", "MSKRUSSTBSYN002" };
             //string[] times = { "00:15:00", "00:30:00", "01:00:00" };
             Dictionary<string,string> servers = new Dictionary<string, string>();
@@ -161,7 +161,49 @@ namespace GetMediaStatistic
                         MR_statistic = new MR_statistic();
                         MR_statistic.Name = server.Key + "_" + time.Key + "_" + "AvgTT";
                         MR_statistic.Value = Convert.ToString(rsLP.getRecord().getValue("AVG_tt"));
-                        MR_statistics.Add(MR_statistic);                      
+                        MR_statistics.Add(MR_statistic);
+
+                        strSQL = " SELECT sc-status, count(*) as num" +
+                                 " FROM \\\\" + server.Value + "\\" + LogPath + "\\" + FileName +
+                                 " WHERE time > SUB( SYSTEM_TIME(), TO_TIMESTAMP('" + time.Value + "','HH:mm:ss') )  " +
+                                 " GROUP BY  sc-status ";
+
+                        rsLP = LogParser.Execute(strSQL, IISLog);                        
+                        while (!rsLP.atEnd())
+                        {
+                            string sw = Convert.ToString(rsLP.getRecord().getValue("sc-status"));                          
+                            switch (sw[0])
+                            {
+                                case '2':
+                                    Http_codes.code_2xx = Http_codes.code_2xx + rsLP.getRecord().getValue("num");
+                                    break;
+
+                                case '5':
+                                    Http_codes.code_5xx = Http_codes.code_5xx + rsLP.getRecord().getValue("num");
+                                    break;
+
+                                default:
+                                    Http_codes.code_others = Http_codes.code_others + rsLP.getRecord().getValue("num");
+                                    break;
+                            }// switch
+                            rsLP.moveNext();
+                        }
+
+                        MR_statistic = new MR_statistic();
+                        MR_statistic.Name = server.Key + "_" + time.Key + "_" + "HTTP-2xx";
+                        MR_statistic.Value = Convert.ToString(Http_codes.code_2xx);
+                        MR_statistics.Add(MR_statistic);
+
+                        MR_statistic = new MR_statistic();
+                        MR_statistic.Name = server.Key + "_" + time.Key + "_" + "HTTP-5xx";
+                        MR_statistic.Value = Convert.ToString(Http_codes.code_5xx);
+                        MR_statistics.Add(MR_statistic);
+
+                        MR_statistic = new MR_statistic();
+                        MR_statistic.Name = server.Key + "_" + time.Key + "_" + "HTTP-others";
+                        MR_statistic.Value = Convert.ToString(Http_codes.code_5xx);
+                        MR_statistics.Add(MR_statistic);
+
                     }
                     //Console.WriteLine("---");
                 }// foreach                              
@@ -170,6 +212,7 @@ namespace GetMediaStatistic
             {
                 Console.WriteLine("Query string: {0}", strSQL);
                 Console.WriteLine("Something wrong: {0}", ex.Message);
+                Log("Something wrong: " + ex.Message);
                // SendFlag = 0;
 
             }
