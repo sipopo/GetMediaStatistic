@@ -118,8 +118,8 @@ namespace GetMediaStatistic
             times.Add("1h", "01:00:00");
 
             string LogPath = @"\c$\inetpub\logs\LogFiles\W3SVC3";            
-            string FileName = "u_ex" + DateTime.Now.ToString("yyMMdd") + "*.log";
-
+            string FileName = "u_ex" + DateTime.UtcNow.ToString("yyMMdd") + "*.log";
+            
             LogQueryClass LogParser = null;
             COMIISW3CInputContextClass IISLog = null;            
 
