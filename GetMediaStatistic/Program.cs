@@ -119,16 +119,17 @@ namespace GetMediaStatistic
 
             string LogPath = @"\c$\inetpub\logs\LogFiles\W3SVC3";            
             string FileName = "u_ex" + DateTime.UtcNow.ToString("yyMMdd") + "*.log";
-            
+
+            Log("DEBUG: utc time "+ DateTime.UtcNow.ToString("yyMMdd") + " current time - " + DateTime.Now.ToString("yyMMdd HH:mm:ss"));
+
             LogQueryClass LogParser = null;
             COMIISW3CInputContextClass IISLog = null;            
 
             LogParser = new LogQueryClass();
             IISLog = new COMIISW3CInputContextClass();
 
-            List<MR_statistic> MR_statistics = new List<MR_statistic>();            
+            List<MR_statistic> MR_statistics = new List<MR_statistic>();
             string strSQL = null;
-
             try
             {
                 foreach (var server in servers)
@@ -136,10 +137,12 @@ namespace GetMediaStatistic
                     foreach (var time in times)                   
                     {
 
+                       
                         strSQL =  " SELECT MAX(time-taken) as MAX_tt, MIN(time-taken) as MIN_tt, AVG(time-taken) as AVG_tt " +
                                       " FROM \\\\" + server.Value + "\\" + LogPath + "\\" + FileName +
-                                      " WHERE time > SUB( SYSTEM_TIME(), TO_TIMESTAMP('" + time.Value + "','HH:mm:ss') )  ";
+                                      " WHERE TO_TIMESTAMP(date, time) > SUB( SYSTEM_TIMESTAMP(), TO_TIMESTAMP('" + time.Value + "','HH:mm:ss') )  ";
 
+                        Log("DEBUG: sql " + strSQL);
                         //Console.WriteLine(strSQL);
                         // run query
                         ILogRecordset rsLP = LogParser.Execute(strSQL, IISLog);
@@ -163,11 +166,32 @@ namespace GetMediaStatistic
                         MR_statistic.Value = Convert.ToString(rsLP.getRecord().getValue("AVG_tt"));
                         MR_statistics.Add(MR_statistic);
 
+                        // for debug     
+                                       
+                        strSQL = " SELECT TOP 1 SYSTEM_TIMESTAMP() as system_time ,TO_TIMESTAMP( date,time) as iis_time, TO_LOCALTIME(TO_TIMESTAMP(date,time)) as local_iistime " +
+                                 ", SUB(SYSTEM_TIMESTAMP(), TO_TIMESTAMP('" + time.Value + "', 'HH:mm:ss')) as where_time" +
+                                  " FROM \\\\" + server.Value + "\\" + LogPath + "\\" + FileName +
+                                  " WHERE TO_TIMESTAMP(date, time) > SUB( SYSTEM_TIMESTAMP(), TO_TIMESTAMP('" + time.Value + "','HH:mm:ss') )  ";
+
+                        Log("DEBUG: sql - " + strSQL);
+                        rsLP = LogParser.Execute(strSQL, IISLog);
+                       
+                        Log("DEBUG : system_time " + rsLP.getRecord().getValue("system_time") + 
+                            " iis_time - " + rsLP.getRecord().getValue("iis_time") +
+                            " local_iistime - " + rsLP.getRecord().getValue("local_iistime") +
+                            " where_time - " + rsLP.getRecord().getValue("where_time")
+                            );
+                           
+                        // for debug - end
+
+                        Http_codes = new Http_codes();
+
                         strSQL = " SELECT sc-status, count(*) as num" +
                                  " FROM \\\\" + server.Value + "\\" + LogPath + "\\" + FileName +
-                                 " WHERE time > SUB( SYSTEM_TIME(), TO_TIMESTAMP('" + time.Value + "','HH:mm:ss') )  " +
+                                 " WHERE TO_TIMESTAMP(date, time) > SUB( SYSTEM_TIMESTAMP(), TO_TIMESTAMP('" + time.Value + "','HH:mm:ss') )  " +
                                  " GROUP BY  sc-status ";
 
+                        Log("DEBUG: sql " + strSQL);
                         rsLP = LogParser.Execute(strSQL, IISLog);                        
                         while (!rsLP.atEnd())
                         {
